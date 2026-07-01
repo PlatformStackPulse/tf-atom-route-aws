@@ -3,9 +3,34 @@
 [![CI](https://github.com/PlatformStackPulse/tf-atom-route-aws/actions/workflows/ci.yml/badge.svg)](https://github.com/PlatformStackPulse/tf-atom-route-aws/actions/workflows/ci.yml)
 ![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.6.0-blueviolet)
 
-## Purpose
+Terraform atom that adds a single route entry (`aws_route`) to an existing route table, targeting a gateway, NAT gateway, transit gateway, or VPC peering connection.
 
-Terraform atom: AWS Route - adds a route entry to a route table.
+## Features
+
+- Creates one `aws_route` in an existing route table for a chosen destination CIDR.
+- Supports every AWS route target type: internet/egress gateway (`gateway_id`), `nat_gateway_id`, `transit_gateway_id`, and `vpc_peering_connection_id`.
+- `enabled` toggle (via the tf-label context) creates zero resources when set to `false` — safe for conditional wiring in higher-level compositions.
+- Full tf-label context chaining, so identity/tagging inputs propagate consistently across a composition.
+- Input validation guards against an empty `route_table_id`.
+
+## Usage
+
+```hcl
+module "default_route" {
+  source = "git::https://github.com/PlatformStackPulse/tf-atom-route-aws.git?ref=v1.0.0"
+
+  namespace = "eg"
+  stage     = "prod"
+  name      = "public"
+
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.this.id
+}
+```
+
+To target a different route destination, set exactly one of `gateway_id`, `nat_gateway_id`,
+`transit_gateway_id`, or `vpc_peering_connection_id` instead of `gateway_id`.
 
 ## Module Documentation
 
@@ -71,3 +96,24 @@ Terraform atom: AWS Route - adds a route entry to a route table.
 | <a name="output_enabled"></a> [enabled](#output\_enabled) | Whether the module is enabled |
 | <a name="output_route_table_id"></a> [route\_table\_id](#output\_route\_table\_id) | Route table ID the route belongs to |
 <!-- END_TF_DOCS -->
+
+## Tests
+
+Unit tests use the Terraform test framework with a mocked AWS provider (no real AWS
+calls, no credentials required). They assert on plan-known values only — the tf-label
+identity, input pass-throughs, and resource counts.
+
+```bash
+# Unit tests (mocked provider)
+terraform init -backend=false
+terraform test -test-directory=tests/unit
+
+# Or via the Makefile
+make test-unit
+```
+
+Integration tests (`tests/integration/`, real AWS credentials required) run with:
+
+```bash
+make test-integration
+```
